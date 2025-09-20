@@ -3,8 +3,8 @@ services:
     name: therapyconnect
     env: node
     region: singapore  # Choose a region closest to your users
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    buildCommand: npm ci && npm run build
+    startCommand: npm run preview -- --port $PORT --host
     envVars:
       - key: NODE_ENV
         value: production

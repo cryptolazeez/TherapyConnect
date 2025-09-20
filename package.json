@@ -14,8 +14,8 @@
     "heroku-postbuild": "npm install && npm run build"
   },
   "engines": {
-    "node": ">=16.0.0",
-    "npm": ">=7.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.2",
