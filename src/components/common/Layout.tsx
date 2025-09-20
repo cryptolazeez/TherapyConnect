@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, Heart, Calendar, User, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,13 +11,14 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { isAuthenticated, user, logout } = useAuth();
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Heart },
-    { name: 'My Bookings', href: '/bookings', icon: Calendar },
+    { name: 'My Bookings', href: '/my-bookings', icon: Calendar },
     { name: 'Profile', href: '/profile', icon: User },
-    { name: 'Settings', href: '/settings', icon: Settings },
+    { name: 'Settings', href: '/settings/general', icon: Settings },
   ];
 
   return (
@@ -34,12 +36,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <Menu className="h-6 w-6" />
                 </button>
               )}
-              <div className="flex items-center">
+              <Link to="/" className="flex items-center">
                 <Heart className="h-8 w-8 text-primary-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">
+                <span className="ml-2 text-xl font-bold text-gray-900 hover:text-primary-600 transition-colors">
                   TherapyConnect
                 </span>
-              </div>
+              </Link>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -48,17 +50,23 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <span className="text-sm text-gray-700">
                     Welcome, {user?.email}
                   </span>
-                  <Button variant="ghost" onClick={logout}>
+                  <Button 
+                    variant="ghost" 
+                    onClick={async () => {
+                      await logout();
+                      window.location.href = '/';
+                    }}
+                  >
                     <LogOut className="h-4 w-4 mr-2" />
                     Logout
                   </Button>
                 </div>
               ) : (
                 <div className="flex items-center space-x-4">
-                  <Button variant="ghost" onClick={() => window.location.href = '/login'}>
+                  <Button variant="ghost" onClick={() => navigate('/login')}>
                     Login
                   </Button>
-                  <Button onClick={() => window.location.href = '/register'}>
+                  <Button onClick={() => navigate('/register')}>
                     Get Started
                   </Button>
                 </div>
@@ -87,12 +95,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               className="fixed top-0 left-0 z-50 w-64 h-full bg-white shadow-xl"
             >
               <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <div className="flex items-center">
+                <Link to="/" className="flex items-center">
                   <Heart className="h-6 w-6 text-primary-600" />
-                  <span className="ml-2 text-lg font-semibold text-gray-900">
+                  <span className="ml-2 text-lg font-semibold text-gray-900 hover:text-primary-600 transition-colors">
                     Menu
                   </span>
-                </div>
+                </Link>
                 <button
                   onClick={() => setIsSidebarOpen(false)}
                   className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
@@ -104,14 +112,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <nav className="mt-8 px-4">
                 <div className="space-y-2">
                   {navigation.map((item) => (
-                    <a
+                    <Link
                       key={item.name}
-                      href={item.href}
+                      to={item.href}
                       className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 transition-colors duration-200"
+                      onClick={() => setIsSidebarOpen(false)}
                     >
                       <item.icon className="h-5 w-5 mr-3" />
                       {item.name}
-                    </a>
+                    </Link>
                   ))}
                 </div>
               </nav>

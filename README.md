@@ -62,13 +62,44 @@ A comprehensive, production-ready platform connecting certified therapists and l
 
 - Node.js 18+ and npm
 - Python 3.11+
-- Docker and Docker Compose
-- PostgreSQL (if running locally)
-- Redis (if running locally)
+- PostgreSQL (optional for local dev)
+- Redis (optional for local dev)
 
 ## 🚀 Quick Start
 
-### Option 1: Docker Compose (Recommended)
+### Option 1: Windows Local Development (No Docker)
+
+This project now runs locally using a Python virtual environment for the backend and Vite for the frontend. Docker is optional.
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd therapyconnect
+```
+
+2. Create environment file (optional; defaults will be used if not set):
+```bash
+copy .env.example .env
+```
+
+3. Install Node dependencies:
+```bash
+npm install
+```
+
+4. Start frontend and backend together (two processes) on Windows:
+```bash
+npm run dev
+```
+- Frontend (Vite): http://localhost:5173
+- Backend (FastAPI): http://127.0.0.1:8000
+- API Docs: http://127.0.0.1:8000/docs
+
+Notes:
+- The backend startup script `backend/start.ps1` will create `.venv`, install Python dependencies from `backend/requirements.txt`, ensure an `uploads/` folder exists, and run Uvicorn with auto-reload.
+- PostgreSQL and Redis are optional for the current mocked backend logic. If you enable them locally, set `DATABASE_URL` and `REDIS_URL` in `.env` accordingly.
+
+### Option 2: Local Development (Manual)
 
 1. Clone the repository:
 ```bash
@@ -82,23 +113,40 @@ cp .env.example .env
 # Edit .env with your configuration
 ```
 
-3. Start all services:
+3. Backend setup (manual):
+```bash
+cd backend
+python -m venv .venv
+# On Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+# On Bash (Git Bash / WSL)
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+
+4. Frontend setup:
+```bash
+npm install
+npm run frontend
+```
+Visit http://localhost:5173
+
+---
+
+### Option 3: Docker (Optional / Legacy)
+Docker support remains in the repo for reference but is no longer the primary workflow.
+
+1. Start all services:
 ```bash
 docker-compose up -d
 ```
 
-4. Visit the application:
+2. Visit the application:
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:8000
 - API Documentation: http://localhost:8000/docs
 
-### Option 2: Local Development
-
-#### Backend Setup
-1. Navigate to backend directory:
-```bash
-cd backend
-```
 
 2. Create virtual environment:
 ```bash

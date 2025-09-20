@@ -2,16 +2,16 @@
 # Note: This is a complete backend structure that requires installation of dependencies
 # In a production environment, run: pip install -r requirements.txt
 
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.websocket import WebSocket, WebSocketDisconnect
 import uvicorn
 from datetime import datetime, timedelta
-import jwt
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict, Set
+from collections import defaultdict
 import uuid
 
 # Database models (using Pydantic for validation)
@@ -38,7 +38,8 @@ app.add_middleware(
 
 # Security
 security = HTTPBearer()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use pbkdf2_sha256 to avoid platform-specific C extension issues with bcrypt on Windows
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -154,7 +155,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-    except jwt.PyJWTError:
+    except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -173,21 +174,57 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 # WebSocket Manager for real-time notifications
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: Dict[str, WebSocket] = {}
+        self.user_connections: Dict[str, Set[str]] = defaultdict(set)
+        self.connection_users: Dict[str, str] = {}
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, client_id: str):
         await websocket.accept()
-        self.active_connections.append(websocket)
+        self.active_connections[client_id] = websocket
+        return client_id
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        if websocket in self.connection_users:
+            client_id = self.connection_users[websocket]
+            if client_id in self.active_connections:
+                del self.active_connections[client_id]
+            if client_id in self.connection_users:
+                del self.connection_users[websocket]
+            # Remove from user_connections
+            for user_id, connections in self.user_connections.items():
+                if client_id in connections:
+                    connections.remove(client_id)
 
-    async def send_personal_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
+    async def subscribe_user(self, client_id: str, user_id: str):
+        if user_id not in self.user_connections:
+            self.user_connections[user_id] = set()
+        self.user_connections[user_id].add(client_id)
+        self.connection_users[client_id] = user_id
 
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
+    async def send_to_user(self, user_id: str, message: dict):
+        if user_id in self.user_connections:
+            for client_id in list(self.user_connections[user_id]):
+                if client_id in self.active_connections:
+                    try:
+                        await self.active_connections[client_id].send_json(message)
+                    except Exception as e:
+                        print(f"Error sending to client {client_id}: {e}")
+                        self.disconnect(self.active_connections[client_id])
+
+    async def broadcast(self, message: dict, user_ids: List[str] = None):
+        """
+        Send message to specific users or all connected users
+        """
+        if user_ids:
+            for user_id in user_ids:
+                await self.send_to_user(user_id, message)
+        else:
+            for client_id in list(self.active_connections.keys()):
+                try:
+                    await self.active_connections[client_id].send_json(message)
+                except Exception as e:
+                    print(f"Error broadcasting to {client_id}: {e}")
+                    self.disconnect(self.active_connections[client_id])
 
 manager = ConnectionManager()
 
@@ -420,16 +457,75 @@ async def get_loyalty_points(current_user=Depends(get_current_user)):
     }
 
 # WebSocket for real-time notifications
-@app.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str):
-    await manager.connect(websocket)
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket, token: str = None):
+    client_id = str(uuid.uuid4())
+    user_id = None
+    
+    # Authenticate if token is provided
+    if token:
+        try:
+            # Remove 'Bearer ' prefix if present
+            if token.startswith('Bearer '):
+                token = token[7:]
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = payload.get("sub")
+        except JWTError:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+    
+    # Connect the WebSocket
+    await manager.connect(websocket, client_id)
+    
+    # Subscribe to user's channel if authenticated
+    if user_id:
+        await manager.subscribe_user(client_id, user_id)
+        print(f"User {user_id} connected with client_id {client_id}")
+    
     try:
         while True:
-            data = await websocket.receive_text()
-            await manager.send_personal_message(f"Message: {data}", websocket)
+            data = await websocket.receive_json()
+            message_type = data.get('type')
+            
+            # Handle different message types
+            if message_type == 'ping':
+                await websocket.send_json({'type': 'pong'})
+                
+            elif message_type == 'subscribe':
+                # Handle channel subscriptions if needed
+                pass
+                
+            elif message_type == 'send_notification':
+                notification_data = data.get('data', {})
+                target_user_id = notification_data.get('userId')
+                
+                # Create notification object
+                notification = {
+                    'id': notification_data.get('id', str(uuid.uuid4())),
+                    'type': notification_data.get('type', 'info'),
+                    'title': notification_data.get('title', 'New Notification'),
+                    'message': notification_data.get('message', ''),
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'metadata': notification_data.get('metadata', {})
+                }
+                
+                # Send to specific user or broadcast to all
+                if target_user_id:
+                    await manager.send_to_user(
+                        target_user_id,
+                        {'type': 'notification', 'data': notification}
+                    )
+                else:
+                    await manager.broadcast(
+                        {'type': 'notification', 'data': notification}
+                    )
+                
     except WebSocketDisconnect:
+        print(f"Client {client_id} disconnected")
         manager.disconnect(websocket)
-        await manager.broadcast(f"Client #{client_id} left the chat")
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        manager.disconnect(websocket)
 
 if __name__ == "__main__":
     uvicorn.run(

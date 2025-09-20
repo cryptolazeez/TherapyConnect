@@ -23,3 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Python virtual environments
+.venv/
+backend/.venv/
+
+# Local uploads
+backend/uploads/

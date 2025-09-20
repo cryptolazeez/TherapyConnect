@@ -8,10 +8,12 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../common/Button';
 import { Input } from '../common/Input';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
+// Form validation schemas
 const loginSchema = yup.object({
   email: yup.string().email('Invalid email').required('Email is required'),
-  password: yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
+  password: yup.string().required('Password is required'),
 });
 
 const registerSchema = yup.object({
@@ -23,44 +25,62 @@ const registerSchema = yup.object({
   role: yup.string().oneOf(['user', 'trainer'], 'Please select a role').required('Role is required'),
 });
 
+// Type definitions
+type LoginFormData = yup.InferType<typeof loginSchema>;
+type RegisterFormData = yup.InferType<typeof registerSchema>;
+
+type FormData = LoginFormData | RegisterFormData;
+
 interface AuthPageProps {
   mode: 'login' | 'register';
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { login, register: registerUser } = useAuth();
+  const navigate = useNavigate();
 
-  const schema = mode === 'login' ? loginSchema : registerSchema;
-  
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({
-    resolver: yupResolver(schema),
+  // Initialize form with validation schema based on mode
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+    resolver: yupResolver(mode === 'login' ? loginSchema : registerSchema) as any,
+    mode: 'onChange',
   });
 
-  const onSubmit = async (data: any) => {
+  // Type guard to check if the form is in register mode
+  const isRegisterMode = mode === 'register';
+  const registerErrors = errors as any; // Type assertion for register-specific fields
+
+  // Handle form submission
+  const onSubmit = async (data: FormData) => {
     setIsLoading(true);
-    
     try {
       if (mode === 'login') {
         await login(data.email, data.password);
         toast.success('Successfully logged in!');
-        window.location.href = '/dashboard';
+        navigate('/dashboard', { replace: true });
       } else {
-        await registerUser(data.email, data.password, data.role);
+        const registerData = data as RegisterFormData;
+        await registerUser(registerData.email, registerData.password, registerData.role);
         toast.success('Account created successfully!');
-        window.location.href = data.role === 'trainer' ? '/onboarding' : '/dashboard';
+        navigate(registerData.role === 'trainer' ? '/onboarding' : '/dashboard', { replace: true });
       }
     } catch (error) {
-      toast.error(mode === 'login' ? 'Login failed. Please check your credentials.' : 'Registration failed. Please try again.');
+      toast.error(mode === 'login' 
+        ? 'Login failed. Please check your credentials.' 
+        : 'Registration failed. Please try again.'
+      );
+      console.error('Auth error:', error);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Register form fields with proper types
+  const emailField = register('email');
+  const passwordField = register('password');
+  const confirmPasswordField = register('confirmPassword');
+  const roleField = register('role');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -90,7 +110,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
             <Input
               label="Email Address"
               type="email"
-              {...register('email')}
+              {...emailField}
               error={errors.email?.message}
               placeholder="Enter your email"
             />
@@ -99,7 +119,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
               <Input
                 label="Password"
                 type={showPassword ? 'text' : 'password'}
-                {...register('password')}
+                {...passwordField}
                 error={errors.password?.message}
                 placeholder="Enter your password"
               />
@@ -117,8 +137,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
                 <Input
                   label="Confirm Password"
                   type="password"
-                  {...register('confirmPassword')}
-                  error={errors.confirmPassword?.message}
+                  {...confirmPasswordField}
+                  error={isRegisterMode ? registerErrors.confirmPassword?.message : undefined}
                   placeholder="Confirm your password"
                 />
 
@@ -131,7 +151,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
                       <input
                         type="radio"
                         value="user"
-                        {...register('role')}
+                        {...roleField}
                         className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
                       />
                       <span className="ml-2 text-sm text-gray-900">Client seeking therapy</span>
@@ -140,14 +160,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode }) => {
                       <input
                         type="radio"
                         value="trainer"
-                        {...register('role')}
+                        {...roleField}
                         className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300"
                       />
                       <span className="ml-2 text-sm text-gray-900">Certified therapist/coach</span>
                     </label>
                   </div>
-                  {errors.role && (
-                    <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
+                  {isRegisterMode && registerErrors.role && (
+                    <p className="mt-1 text-sm text-red-600">{registerErrors.role.message}</p>
                   )}
                 </div>
               </>
