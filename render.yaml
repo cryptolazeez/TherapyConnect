@@ -5,7 +5,8 @@ services:
     region: singapore  # Choose a region closest to your users
     nodeVersion: 18.0.0  # Specify Node.js version
     buildCommand: |
-      npm install --include=dev
+      npm install
+      npm install --only=dev
       npm run build
     startCommand: npm start
     envVars:
