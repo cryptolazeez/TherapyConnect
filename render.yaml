@@ -4,16 +4,27 @@ services:
     env: node
     region: singapore  # Choose a region closest to your users
     buildCommand: |
-      npm ci --include=dev
+      npm ci
       npm run build
     startCommand: npm run preview -- --port $PORT --host
     envVars:
       - key: NODE_ENV
         value: production
-      - key: REACT_APP_API_URL
-        value: https://your-api-url.com  # Replace with your actual API URL
+      - key: PORT
+        value: 10000
+      - key: VITE_API_URL
+        value: /api  # Update this with your production API URL if needed
+      # Add other environment variables your app needs here
     autoDeploy: true
     plan: free  # Or 'starter' for production use
+    buildFilter:
+      paths:
+        - "**/*"
+      ignorePaths:
+        - "node_modules/**"
+        - ".git/**"
+        - "*.md"
+        - ".gitignore"
 
   # Uncomment and configure if you have a backend API service
   # - type: web
