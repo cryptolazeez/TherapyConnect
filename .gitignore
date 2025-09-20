@@ -24,9 +24,11 @@ dist-ssr
 *.sw?
 .env
 
-# Python virtual environments
+# Python virtual environments and cache
 .venv/
 backend/.venv/
+backend/venv/
+backend/__pycache__/
 
 # Local uploads
 backend/uploads/
