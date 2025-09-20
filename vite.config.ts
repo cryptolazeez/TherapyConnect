@@ -2,8 +2,9 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'url';
 
+// Vite configuration
 export default defineConfig(({ mode }) => {
-  // Load environment variables based on the current mode
+  // Load env variables for the current mode
   const env = loadEnv(mode, process.cwd(), '');
 
   return {
@@ -18,30 +19,28 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
-      proxy: mode === 'development' ? {
-        // Proxy REST API calls to FastAPI backend in development
-        '/api': {
-          target: 'http://127.0.0.1:8000',
-          changeOrigin: true,
-          rewrite: (path) => path,
-        },
-        // Health checks
-        '/health': {
-          target: 'http://127.0.0.1:8000',
-          changeOrigin: true,
-          rewrite: (path) => path,
-        },
-        // WebSocket endpoint
-        '/ws': {
-          target: 'ws://127.0.0.1:8000',
-          ws: true,
-          changeOrigin: true,
-        },
-      } : undefined,
+      proxy:
+        mode === 'development'
+          ? {
+              // Proxy API requests to FastAPI backend in dev
+              '/api': {
+                target: 'http://127.0.0.1:8000',
+                changeOrigin: true,
+              },
+              '/health': {
+                target: 'http://127.0.0.1:8000',
+                changeOrigin: true,
+              },
+              '/ws': {
+                target: 'ws://127.0.0.1:8000',
+                ws: true,
+                changeOrigin: true,
+              },
+            }
+          : undefined,
     },
-    // Base public path when served in production
-    base: '/',
-    // Build configuration
+    // Use relative paths in production so it works on any static host
+    base: './',
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
@@ -49,12 +48,10 @@ export default defineConfig(({ mode }) => {
       minify: mode === 'production' ? 'terser' : false,
       chunkSizeWarningLimit: 1600,
     },
-    // Environment variables to expose to the client
+    // Expose env variables to the client
     define: {
-      'process.env': {
-        NODE_ENV: JSON.stringify(mode),
-        VITE_API_URL: JSON.stringify(env.VITE_API_URL || '/api'),
-      },
+      __APP_ENV__: JSON.stringify(mode),
+      __API_URL__: JSON.stringify(env.VITE_API_URL || '/api'),
     },
   };
 });
