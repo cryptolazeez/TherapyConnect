@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm:frontend\" \"npm:backend\"",
-    "frontend": "vite",
+    "frontend": "npx vite",
     "backend": "powershell -ExecutionPolicy Bypass -File ./backend/start.ps1 -ListenHost 127.0.0.1 -ListenPort 8000",
-    "build": "vite build",
+    "build": "npx vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "start": "vite preview --port $PORT --host",
+    "preview": "npx vite preview",
+    "start": "npx vite preview --port $PORT --host",
     "heroku-postbuild": "npm install && npm run build"
   },
   "engines": {
@@ -39,7 +39,7 @@
     "@eslint/js": "^9.9.1",
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",
-    "@vitejs/plugin-react": "^4.3.1",
+    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.18",
     "concurrently": "^9.0.1",
     "eslint": "^9.9.1",
@@ -50,6 +50,6 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
-    "vite": "^5.4.2"
+    "vite": "^5.4.20"
   }
 }
