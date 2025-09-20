@@ -4,9 +4,9 @@ services:
     env: node
     region: singapore  # Choose a region closest to your users
     buildCommand: |
-      npm ci
+      npm ci --include=dev
       npm run build
-    startCommand: npm run preview -- --port $PORT --host
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
