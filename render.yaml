@@ -3,8 +3,9 @@ services:
     name: therapyconnect
     env: node
     region: singapore  # Choose a region closest to your users
+    nodeVersion: 18.0.0  # Specify Node.js version
     buildCommand: |
-      npm install
+      npm install --include=dev
       npm run build
     startCommand: npm start
     envVars:
@@ -16,14 +17,6 @@ services:
         value: /api  # Update this with your production API URL if needed
     autoDeploy: true
     plan: free  # Or 'starter' for production use
-    buildFilter:
-      paths:
-        - "**/*"
-      ignorePaths:
-        - "node_modules/**"
-        - ".git/**"
-        - "*.md"
-        - ".gitignore"
 
   # Uncomment and configure if you have a backend API service
   # - type: web
